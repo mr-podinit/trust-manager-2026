@@ -1,0 +1,219 @@
+---
+# MutatingPolicy per mount JKS (ConfigMap my-ca, key cacerts)
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
+metadata:
+  name: trust-manager-mount-jks
+spec:
+  autogen:
+    podControllers:
+      controllers: []
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+      operations: ["CREATE", "UPDATE"]
+  matchConditions:
+    - name: exclude-existing-ca-volume
+      expression: >-
+        !has(object.spec.volumes) || !object.spec.volumes.exists(v, v.name == 'ca-bundle-jks')
+    - name: mount-ca-volume
+      expression: >-
+        has(object.metadata.annotations) && 'trust-manager.io/mount-jks' in object.metadata.annotations
+  variables:
+    - name: mountpoint
+      expression: "object.metadata.annotations['trust-manager.io/mount-jks']"
+  mutations:
+    - patchType: ApplyConfiguration
+      applyConfiguration:
+        expression: >-
+          Object{
+            spec: Object.spec{
+              volumes: [
+                Object.spec.volumes{
+                  name: "ca-bundle-jks",
+                  configMap: Object.spec.volumes.configMap{
+                    name: "my-ca"
+                  }
+                }
+              ],
+              containers: object.spec.containers.map(c,
+                Object.spec.containers{
+                  name: c.name,
+                  volumeMounts: [
+                    Object.spec.containers.volumeMounts{
+                      name: "ca-bundle-jks",
+                      mountPath: variables.mountpoint,
+                      subPath: "cacerts",
+                      readOnly: true
+                    }
+                  ]
+                }
+              )
+            }
+          }
+---
+# MutatingPolicy per mount all (ConfigMap my-ca)
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
+metadata:
+  name: trust-manager-mount-pem
+spec:
+  autogen:
+    podControllers:
+      controllers: []
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+      operations: ["CREATE", "UPDATE"]
+  matchConditions:
+    - name: exclude-existing-ca-volume
+      expression: >-
+        !has(object.spec.volumes) || !object.spec.volumes.exists(v, v.name == 'ca-bundle-pem')
+    - name: mount-ca-volume
+      expression: >-
+        has(object.metadata.annotations) && 'trust-manager.io/mount-pem' in object.metadata.annotations
+  variables:
+    - name: mountpoint
+      expression: "object.metadata.annotations['trust-manager.io/mount-pem']"
+  mutations:
+    - patchType: ApplyConfiguration
+      applyConfiguration:
+        expression: >-
+          Object{
+            spec: Object.spec{
+              volumes: [
+                Object.spec.volumes{
+                  name: "ca-bundle-pem",
+                  configMap: Object.spec.volumes.configMap{
+                    name: "my-ca"
+                  }
+                }
+              ],
+              containers: object.spec.containers.map(c,
+                Object.spec.containers{
+                  name: c.name,
+                  volumeMounts: [
+                    Object.spec.containers.volumeMounts{
+                      name: "ca-bundle-pem",
+                      mountPath: variables.mountpoint,
+                      subPath: "ca-certificates.crt",
+                      readOnly: true
+                    }
+                  ]
+                }
+              )
+            }
+          }
+---
+# MutatingPolicy per mount P12 (ConfigMap my-ca)
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
+metadata:
+  name: trust-manager-mount-p12
+spec:
+  autogen:
+    podControllers:
+      controllers: []
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+      operations: ["CREATE", "UPDATE"]
+  matchConditions:
+    - name: exclude-existing-ca-volume
+      expression: >-
+        !has(object.spec.volumes) || !object.spec.volumes.exists(v, v.name == 'ca-bundle-p12')
+    - name: mount-ca-volume
+      expression: >-
+        has(object.metadata.annotations) && 'trust-manager.io/mount-p12' in object.metadata.annotations
+  variables:
+    - name: mountpoint
+      expression: "object.metadata.annotations['trust-manager.io/mount-p12']"
+  mutations:
+    - patchType: ApplyConfiguration
+      applyConfiguration:
+        expression: >-
+          Object{
+            spec: Object.spec{
+              volumes: [
+                Object.spec.volumes{
+                  name: "ca-bundle-p12",
+                  configMap: Object.spec.volumes.configMap{
+                    name: "my-ca"
+                  }
+                }
+              ],
+              containers: object.spec.containers.map(c,
+                Object.spec.containers{
+                  name: c.name,
+                  volumeMounts: [
+                    Object.spec.containers.volumeMounts{
+                      name: "ca-bundle-p12",
+                      mountPath: variables.mountpoint,
+                      subPath: "bundle.p12",
+                      readOnly: true
+                    }
+                  ]
+                }
+              )
+            }
+          }
+---
+# MutatingPolicy per mount JKS (ConfigMap my-ca, key cacerts)
+apiVersion: policies.kyverno.io/v1
+kind: MutatingPolicy
+metadata:
+  name: trust-manager-mount-all
+spec:
+  autogen:
+    podControllers:
+      controllers: []
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      resources: ["pods"]
+      operations: ["CREATE", "UPDATE"]
+  matchConditions:
+    - name: exclude-existing-ca-volume
+      expression: >-
+        !has(object.spec.volumes) || !object.spec.volumes.exists(v, v.name == 'ca-bundle-all')
+    - name: mount-ca-volume
+      expression: >-
+        has(object.metadata.annotations) && 'trust-manager.io/mount-all' in object.metadata.annotations
+  variables:
+    - name: mountpoint
+      expression: "object.metadata.annotations['trust-manager.io/mount-all']"
+  mutations:
+    - patchType: ApplyConfiguration
+      applyConfiguration:
+        expression: >-
+          Object{
+            spec: Object.spec{
+              volumes: [
+                Object.spec.volumes{
+                  name: "ca-bundle-all",
+                  configMap: Object.spec.volumes.configMap{
+                    name: "my-ca"
+                  }
+                }
+              ],
+              containers: object.spec.containers.map(c,
+                Object.spec.containers{
+                  name: c.name,
+                  volumeMounts: [
+                    Object.spec.containers.volumeMounts{
+                      name: "ca-bundle-all",
+                      mountPath: variables.mountpoint,
+                      readOnly: true
+                    }
+                  ]
+                }
+              )
+            }
+          }

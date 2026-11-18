@@ -1,0 +1,35 @@
+# helm upgrade --install trust-manager jetstack/trust-manager --namespace trust-manager --create-namespace --version v0.26.0 -f trust-manager/trust-manager-v2.yaml
+
+global:
+  rbac:
+    create: true
+    aggregateClusterRoles: false
+crds:
+  enabled: true
+replicaCount: 1
+
+defaultPackage:
+  enabled: true
+defaultPackageImage:
+  registry: quay.io
+  repository: jetstack/trust-pkg-debian-trixie
+  tag: "20250419-deb13u1.0"
+
+secretTargets:
+  enabled: true
+  authorizedSecretsAll: false
+  authorizedSecrets:
+  - my-ca
+
+filterNonCACerts:
+  enabled: true
+
+# Don't use in production, please install Cert-Manager before
+app:
+  webhook:
+    tls:
+      helmCert:
+        enabled: true
+  trust:
+    namespace: trust-manager
+enabled: true
