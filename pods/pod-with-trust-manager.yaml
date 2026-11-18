@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ca-reader-with-trust-manager
+  namespace: default
+  labels:
+    app: ca-reader-with-trust-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ca-reader-with-trust-manager
+  template:
+    metadata:
+      labels:
+        app: ca-reader-with-trust-manager
+      annotations:
+        trust-manager.io/mount-jks: /opt/java/openjdk/lib/security/cacerts
+        trust-manager.io/mount-pem: /etc/ssl/certs/ca-certificates.crt
+    spec:
+      serviceAccountName: default
+      containers:
+      - name: ca-reader
+        image: eclipse-temurin:21.0.11_10-jdk-alpine-3.23
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsNonRoot: false
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+        command:
+        - /bin/sh
+        - -c
+        - |
+          #!/bin/sh
+          TARGET_CA_1="emSign ECC Root CA - G3"
+          while true; do
+            cacerts_count="N/A"
+            target1_cacerts="N/A"
+            crt_count="N/A"
+            target1_crt="N/A"
+
+            if [ -f /opt/java/openjdk/lib/security/cacerts ]; then
+              cacerts_count=$(keytool -list -keystore /opt/java/openjdk/lib/security/cacerts -storepass changeit 2>/dev/null | grep -c "^Certificate" || echo 0)
+              cacerts_dump=$(keytool -list -v -keystore /opt/java/openjdk/lib/security/cacerts -storepass changeit 2>/dev/null || true)
+              if echo "$cacerts_dump" | grep -Fqi "$TARGET_CA_1"; then target1_cacerts="SI"; else target1_cacerts="NO"; fi
+            fi
+
+            if [ -f /etc/ssl/certs/ca-certificates.crt ]; then
+              crt_count=$(grep -c "BEGIN CERTIFICATE" /etc/ssl/certs/ca-certificates.crt 2>/dev/null || echo 0)
+              if command -v openssl >/dev/null 2>&1; then
+                crt_dump=$(openssl crl2pkcs7 -nocrl -certfile /etc/ssl/certs/ca-certificates.crt 2>/dev/null | openssl pkcs7 -print_certs -noout 2>/dev/null || true)
+                if echo "$crt_dump" | grep -Fqi "$TARGET_CA_1"; then target1_crt="SI"; else target1_crt="NO"; fi
+              else
+                target1_crt="N/A"
+              fi
+            fi
+
+            echo "[$(date +%H:%M:%S)] cacerts=${cacerts_count} (${TARGET_CA_1}:${target1_cacerts}) ca-certificates.crt=${crt_count} (${TARGET_CA_1}:${target1_crt})"
+            sleep 10
+          done
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "10m"
+          limits:
+            memory: "64Mi"
+            cpu: "1000m"
+        stdin: true
+        tty: true
+      nodeSelector:
+        kubernetes.io/os: linux
